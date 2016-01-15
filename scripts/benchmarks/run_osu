@@ -1,0 +1,222 @@
+#!/bin/bash
+#
+# Run the OSU MPI microbenchmarks (built on top of libfabric) in a few
+# configuration via aprun or srun
+#
+# For more info on how to build, see:
+# https://github.com/ofi-cray/libfabric-cray/wiki/Building-and-Running-OpenMPI
+#
+
+if [ $# -lt 2 ]; then
+    echo "usage: $0 <path-to-OSU-microbenchmarks> <path-to-libfabric-install> [max-tasks]"
+    exit -1
+fi
+
+OSU_DIR="$1"
+LIBFABRIC_INSTALL="$2"
+
+if [ $# -gt 2 ]; then
+    max_tasks="$3"
+else
+    max_tasks=2
+fi
+
+cd $OSU_DIR
+if [ $? != 0 ]; then
+    echo "Could not change directory to $OSU_DIR."
+    exit -1
+fi
+
+#
+# Check for srun or aprun
+#
+srun=`command -v srun`
+if [ $? == 0 ]; then
+    launcher="srun"
+else
+    aprun=`command -v aprun`
+    if [ $? == 0 ]; then
+        launcher="aprun"
+    else
+        echo "Cannot find a supported job launcher (srun, aprun).  Please load the appropriate module"
+        exit -1
+    fi
+fi
+
+# srun -n X -N Y -t Z
+# aprun -n Y -N (Y/X) -t Z*60
+if [ $launcher = "srun" ]; then
+    all_args="-N2 -t00:2:00 --exclusive"
+    pt2pt_args="-n2 $all_args"
+    one_sided_args=$pt2pt_args
+else
+    all_args="-t120"
+    pt2pt_args="-n2 -N1 $all_args"
+    one_sided_args=$pt2pt_args
+fi
+
+export LD_LIBRARY_PATH=$LIBFABRIC_INSTALL/lib:$LD_LIBRARY_PATH
+
+ret=0
+not_run=0
+pass=0
+fail=0
+
+run_test() {
+    test=$1
+    args="$2"
+
+    if [ ! -x $test ]; then
+	blah=$((not_run++))
+	echo "$test not found."
+	ret=-1
+	continue
+    fi
+    echo "###"
+    echo "### Running: $launcher $args $test"
+    echo "###"
+    $launcher $args $test
+    if [ $? != 0 ]; then
+	echo "$test FAILED ($args)"
+	blah=$((fail++))
+	ret=-1
+    else
+	blah=$((pass++))
+	echo ""
+    fi
+}
+
+#
+# MPI tests
+#
+pushd mpi >& /dev/null
+if [ $? != 0 ]; then
+    echo "Could not change directory to mpi."
+    exit -1
+fi
+
+#
+# Point-to-point
+#
+pt2pt="
+osu_bw
+osu_bibw
+osu_latency
+"
+
+pt2pt_multi="
+osu_mbw_mr
+osu_multi_lat
+"
+
+pushd pt2pt >& /dev/null
+if [ $? != 0 ]; then
+    echo "Could not change directory to pt2pt."
+    exit -1
+fi
+echo "###"
+echo "### point-to-point tests"
+echo "###"
+
+for test in $pt2pt; do
+    run_test $test "$pt2pt_args"
+done
+
+for test in $pt2pt_multi; do
+    for ((t=2;t<=max_tasks;t=t*2)); do
+        if [ $launcher = "srun" ]; then
+	    run_test $test "-n$t $all_args"
+        else
+            tpn=$((t/2))
+            run_test $test "-n$t -N$tpn $all_args"
+        fi
+        sleep 1
+    done
+done
+
+popd >& /dev/null
+
+#
+# One-sided
+#
+one_sided="
+osu_acc_latency
+osu_cas_latency
+osu_fop_latency
+osu_get_acc_latency
+osu_get_bw
+osu_get_latency
+osu_put_bibw
+osu_put_bw
+osu_put_latency
+"
+
+pushd one-sided
+if [ $? != 0 ]; then
+    echo "Could not change directory to one-sided."
+    exit -1
+fi
+echo "###"
+echo "### one-sided tests"
+echo "###"
+
+export OMPI_MCA_osc=pt2pt
+for test in $one_sided; do
+    run_test $test "$one_sided_args"
+done
+unset OMPI_MCA_osc
+
+popd >& /dev/null
+
+collective="
+osu_allgather
+osu_allgatherv
+osu_allreduce
+osu_alltoall
+osu_alltoallv
+osu_barrier
+osu_bcast
+osu_gather
+osu_gatherv
+osu_iallgather
+osu_ialltoall
+osu_ibarrier
+osu_ibcast
+osu_igather
+osu_iscatter
+osu_reduce
+osu_reduce_scatter
+osu_scatter
+osu_scatterv"
+
+pushd collective >& /dev/null
+if [ $? != 0 ]; then
+    echo "Could not change directory to collective."
+    exit -1
+fi
+echo "###"
+echo "### collective tests"
+echo "###"
+
+for test in $collective; do
+    for ((t=2;t<=max_tasks;t=t*2)); do
+        if [ $launcher = "srun" ]; then
+	    run_test $test "-n$t $all_args"
+        else
+            tpn=$((t/2))
+            run_test $test "-n$t -N$tpn $all_args"
+        fi
+        sleep 1
+    done
+done
+popd >& /dev/null
+
+echo "###"
+echo "### SUMMARY"
+echo "### PASS: $pass"
+echo "### FAIL: $fail"
+echo "### NOT RUN: $not_run"
+echo "###"
+
+exit $ret
+
