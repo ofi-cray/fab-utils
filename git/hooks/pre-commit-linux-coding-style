@@ -1,0 +1,22 @@
+#!/bin/sh
+# Pre-commit hook for running the Linux coding style checker
+# Available at:
+#  https://github.com/torvalds/linux/blob/master/scripts/checkpatch.pl
+#  https://github.com/torvalds/linux/blob/master/scripts/spelling.txt
+
+if [ "$CHECKPATCH" == "" ]; then
+    CHECKPATCH=`command -v checkpatch.pl`
+    if [ $? == 1 ]; then
+	echo "checkpatch.pl not found"
+	exit -1
+    fi
+fi
+
+git diff --cached HEAD | $CHECKPATCH --no-tree --no-signoff --summary-file -q --ignore FILE_PATH_CHANGES,NEW_TYPEDEFS,SSCANF_TO_KSTRTO,QUOTED_WHITESPACE_BEFORE_NEWLINE,BRACES,SPLIT_STRING -
+
+if [ $? != 0 ]; then
+    echo "Coding style checked failed.  Please fix warnings and errors and try commiting again."
+    exit -1
+fi
+
+exit 0
