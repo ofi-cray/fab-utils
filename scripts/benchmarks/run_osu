@@ -46,11 +46,11 @@ fi
 # srun -n X -N Y -t Z
 # aprun -n Y -N (Y/X) -t Z*60
 if [ $launcher = "srun" ]; then
-    all_args="-N2 -t00:2:00 --exclusive"
+    all_args="-N2 -t00:2:00 --exclusive --cpu_bind=none"
     pt2pt_args="-n2 $all_args"
     one_sided_args=$pt2pt_args
 else
-    all_args="-t120"
+    all_args="-t120 -cc none"
     pt2pt_args="-n2 -N1 $all_args"
     one_sided_args=$pt2pt_args
 fi
