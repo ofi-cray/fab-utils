@@ -18,7 +18,7 @@ LIBFABRIC_INSTALL="$2"
 if [ $# -gt 2 ]; then
     max_tasks="$3"
 else
-    max_tasks=2
+    max_tasks=128
 fi
 
 cd $OSU_DIR
@@ -45,12 +45,15 @@ fi
 
 # srun -n X -N Y -t Z
 # aprun -n Y -N (Y/X) -t Z*60
+#
+# at least on tiger, srun seems to allocate ranks to hyperthreads, so use -c2
+#
 if [ $launcher = "srun" ]; then
-    all_args="-N2 -t00:2:00 --exclusive --cpu_bind=none"
-    pt2pt_args="-n2 $all_args"
+    all_args="-t00:4:00 --exclusive --cpu_bind=none -c2"
+    pt2pt_args="-n2 -N2 $all_args"
     one_sided_args=$pt2pt_args
 else
-    all_args="-t120 -cc none"
+    all_args="-t240 -cc none"
     pt2pt_args="-n2 -N1 $all_args"
     one_sided_args=$pt2pt_args
 fi
@@ -124,8 +127,11 @@ done
 
 for test in $pt2pt_multi; do
     for ((t=2;t<=max_tasks;t=t*2)); do
+        if [ $t -gt 16 ]; then
+            continue
+        fi
         if [ $launcher = "srun" ]; then
-	    run_test $test "-n$t $all_args"
+            run_test $test "-n$t -N 2 $all_args"
         else
             tpn=$((t/2))
             run_test $test "-n$t -N$tpn $all_args"
@@ -204,7 +210,7 @@ for test in $collective; do
 	    run_test $test "-n$t $all_args"
         else
             tpn=$((t/2))
-            run_test $test "-n$t -N$tpn $all_args"
+            run_test $test "-n$t $all_args"
         fi
         sleep 1
     done
