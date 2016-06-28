@@ -49,11 +49,11 @@ fi
 # at least on tiger, srun seems to allocate ranks to hyperthreads, so use -c2
 #
 if [ $launcher = "srun" ]; then
-    all_args="-t00:4:00 --exclusive --cpu_bind=none -c2"
+    all_args="-t00:8:00 --exclusive --cpu_bind=none -c2"
     pt2pt_args="-n2 -N2 $all_args"
     one_sided_args=$pt2pt_args
 else
-    all_args="-t240 -cc none"
+    all_args="-t480 -cc none"
     pt2pt_args="-n2 -N1 $all_args"
     one_sided_args=$pt2pt_args
 fi
