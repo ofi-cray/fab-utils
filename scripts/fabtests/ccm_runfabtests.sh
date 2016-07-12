@@ -36,7 +36,7 @@ load_ccm_module="module load ccm"
 ccm_login="ccmlogin"
 ccm_login_script="`mktemp ${HOME}/ccm_login_fabtests_script.XXXXXX`"
 fabtests_directory="`pwd`"
-fabtests_cmd="./runfabtests.sh -p "
+fabtests_cmd=""
 provider="gni"
 test_suite=""
 use_parameters=0
@@ -156,15 +156,13 @@ then
     echo "*** pid: $$, final node_1: '${node_1}'"
     echo "*** pid: $$, final node_2: '${node_2}'"
 
-    echo "*** cmd: 'cd ${fabtests_directory}'"
 fi
-cd ${fabtests_directory}
 
 if [[ ${use_parameters} -eq 0 ]]
 then
-    fabtests_cmd="./runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${provider} ${node_1} ${node_2}"
+    fabtests_cmd="${fabtests_directory}/runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${provider} ${node_1} ${node_2}"
 else
-    fabtests_cmd="./runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${node_1} ${node_2} ${provider}"
+    fabtests_cmd="${fabtests_directory}/runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${node_1} ${node_2} ${provider}"
 fi
 
 if [[ ${debug} -ne 0 ]]
@@ -173,15 +171,18 @@ echo "*** cmd: '${fabtests_cmd}'"
 fi
 
 ${fabtests_cmd}
+ret=$?
 if [[ ${debug} -ne 0 ]]
 then
-    if [ $? == 0 ]
+    if [ $ret == 0 ]
     then
         echo "*** runfabtests exited normally"
     else
         echo "*** Error: runfabtests exited abnormally: '$?'"
     fi
 fi
+
+exit $ret
 END_OF_CCMLOGIN_SCRIPT_2
 
 chmod 755 ${ccm_login_script}
