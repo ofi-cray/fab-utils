@@ -158,11 +158,21 @@ then
 
 fi
 
+ipaddr_1=`grep ${node_1} /etc/hosts | cut -f1`
+ipaddr_2=`grep ${node_2} /etc/hosts | cut -f1`
+
+if [[ ${debug} -ne 0 ]]
+then
+    echo "*** pid: $$, final ipaddr_1: '${ipaddr_1}'"
+    echo "*** pid: $$, final ipaddr_2: '${ipaddr_2}'"
+
+fi
+
 if [[ ${use_parameters} -eq 0 ]]
 then
-    fabtests_cmd="${fabtests_directory}/runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${provider} ${node_1} ${node_2}"
+    fabtests_cmd="${fabtests_directory}/runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${provider} ${ipaddr_1} ${ipaddr_2}"
 else
-    fabtests_cmd="${fabtests_directory}/runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${node_1} ${node_2} ${provider}"
+    fabtests_cmd="${fabtests_directory}/runfabtests.sh -p ${fabtests_directory} ${verbose} ${test_suite} ${ipaddr_1} ${ipaddr_2} ${provider}"
 fi
 
 if [[ ${debug} -ne 0 ]]
