@@ -1,0 +1,263 @@
+#!/bin/bash
+#
+#   Copyright (c) 2016 Cray Inc. All Rights Reserved.
+# 
+#
+# Run DOE Mini apps (built on top of libfabric) in a few configuration
+# via aprun or srun.
+#
+# Each app can be built with either GNU or Intel and OpenMPI or MPICH.
+# Which binary version is used is up to the user.
+#
+# For more info on how to build and run each app, see:
+# the individual NOTES<appname>.txt files in this directory 
+# and possibly
+# https://github.com/ofi-cray/libfabric-cray/wiki/Building-and-Running-OpenMPI
+#
+# Run instructions for this script:
+# 1. load or swap in appropriate PrgEnv module which matches the way the binary was built,
+# i.e. PrgEnv-gnu or PrgEnv-intel
+# 2. if the binary was built with the Intel compiler and MPICH, set LD_LIBRARY_PATH to include
+# the MPICH built with Intel,
+#  e.g., at the time this script was written,
+# export LD_LIBRARY_PATH=/cray/css/users/libfabric-test/clients/mpich/install-intel/lib:$LD_LIBRARY_PATH 
+# 3. if this has not been done yet, rename the snap executable (gsnap or ksnap or isnap) to "snap".
+# 4. to make sure detailed failure output from an app is not lost on the screen amongst all the
+# other output, redirect all output, including slurm errors, to a file
+# 5. run the script, e.g.
+# ./run_miniapps . /cray/css/users/libfabric-test/builds/latest-libfabric-CLE-5.2UP04 medium 2>&1 | tee miniapps.out
+# or, if you have not built your own binaries yet, use use favorite contrator's binaries at your own risk
+# ./run_miniapps /cray/css/users/c17581/scripts/miniapps /cray/css/users/libfabric-test/builds/latest-libfabric-CLE-5.2UP04 medium 2>&1 | tee miniapps.out
+# 6. a PASS/FAIL summary is printed at the end; search the output file for "FAILED" to find out failure
+# details should any have occurred; some apps such as SNAP and CoMD produce output files which can be
+# perused or deleted.
+#
+# Notes: input decks need to be in the same directory as the script and output files will be written
+# there as well.
+#
+# TODO: consider simplifying nthreads handling
+
+
+if [ $# -lt 2 ]; then
+    echo "usage: $0 <path-to-miniapp_binaries> <path-to-libfabric-install> [size]"
+    echo "       where size can be small, medium, or large, and, depending on app, "
+    echo "       small uses between 6 and 16 ranks on 2 nodes, 2 threads per rank"
+    echo "       medium uses between 96 and 216 ranks on 2 or more nodes, 1 to 2 threads per rank"
+    echo "       large uses between 8000 and 8129 ranks on 125 or more nodes, 2 threads per rank;"
+    echo "       default is small"
+    exit -1
+fi
+
+APP_DIR="$1"
+LIBFABRIC_INSTALL_DIR="$2"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+if [ $# -gt 2 ]; then
+    size="$3"
+else
+    size="small"
+    echo "Defaulting to small run"
+fi
+
+if ! [ -d "$APP_DIR" ] || ! [ -x "$APP_DIR" ]; then
+    echo "Could not access directory containing application binaries $APP_DIR"
+    exit -1
+fi
+
+#
+# Check for srun or aprun
+#
+srun=`command -v srun`
+if [ $? == 0 ]; then
+    launcher="srun"
+else
+    aprun=`command -v aprun`
+    if [ $? == 0 ]; then
+        launcher="aprun"
+    else
+        echo "Cannot find a supported job launcher (srun, aprun).  Please load the appropriate module."
+        exit -1
+    fi
+fi
+
+export LD_LIBRARY_PATH=$LIBFABRIC_INSTALL_DIR/lib:$LD_LIBRARY_PATH
+
+#  srun -n <nranks> -N <nnodes> --ntasks-per-node=<nranks-per-node> 
+#       -c <nthreads> --threads-per-core=<cpus per core> --exclusive -t <timeout>
+# aprun -n <nranks> -N <nranks-per-node> -d <nthreads> -t <timeout-in-seconds>
+if [ $launcher = "srun" ]; then
+    launch_args_small="-n 16 --ntasks-per-node=8 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_medium="-n 128 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_large="-n 8000 --ntasks-per-node=64 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_snap_small="-n 6 -N 2 --ntasks-per-node=3 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_snap_medium="-n 96 -N 4 --ntasks-per-node=24 --hint=nomultithread --exclusive"
+    launch_args_snap_large="-n 8192 -N 128 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_lulesh_small="-n 8 -N 2 --ntasks-per-node=4 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_lulesh_medium="-n 216 -c 2 --threads-per-core=2 --exclusive"
+    timeout_1="-t00:15:00"
+    timeout_2="-t00:20:00"
+    timeout_3="-t00:25:00"
+else
+    launch_args_small="-n 16 -N 8 -d 2 -cc depth"
+    launch_args_medium="-n 128 -d 2 -cc depth"
+    launch_args_large="-n 8000 -N 64 -d 2 -cc depth -j 2"
+    launch_args_snap_small="-n 6 -N 3 -d 2 -cc depth"
+    launch_args_snap_medium="-n 96 -N 24"
+    launch_args_snap_large="-n 8192 -N 64 -d 2 -cc depth -j 2"
+    launch_args_lulesh_small="-n 8 -N 4 -d 2 -cc depth"
+    launch_args_lulesh_medium="-n 216 -d 2 -cc depth -j 2"
+    timeout_1="-t 900"
+    timeout_2="-t 1200"
+    timeout_3="-t 1500"
+fi
+
+ret=0
+not_run=0
+pass=0
+fail=0
+
+run_test() {
+    test=$1
+    l_args="$2"
+    limit="$3"
+    app_args="$4"
+
+    if [ ! -x $APP_DIR/$test ]; then
+	blah=$((not_run++))
+	echo "$APP_DIR/$test not found."
+	ret=-1
+	continue
+    fi
+    echo "###"
+    echo "### ldd $APP_DIR/$test" 
+    echo "###"
+    ldd $APP_DIR/$test
+    echo ""
+    echo "###"
+    echo "### Running: $launcher $l_args $limit $APP_DIR/$test $app_args"
+    echo "###"
+    $launcher $l_args $limit $APP_DIR/$test $app_args
+    if [ $? != 0 ]; then
+	echo "$test FAILED ($l_args $limit $APP_DIR/$test $app_args)"
+	blah=$((fail++))
+	ret=-1
+    else
+	blah=$((pass++))
+	echo ""
+    fi
+}
+
+#
+# DOE Mini Apps XSBench, SNAP, HPGMG, LULESH, CoMD
+#
+
+# For this group of apps, select any or all of these
+PowerOfTwo="
+XSBench
+hpgmg-fv
+"
+
+date
+echo "###"
+echo "### Mini Apps which no special nranks requirements (XSBench, HPGMG)"
+echo "###"
+
+for test in $PowerOfTwo; do
+    if [ $size = "large" ]; then
+        launch_args="$launch_args_large"
+        timeout="$timeout_2"
+    else if [ $size = "medium" ]; then
+        launch_args="$launch_args_medium"
+        timeout="$timeout_1"
+    else
+        launch_args="$launch_args_small"
+        timeout="$timeout_1"
+    fi
+    fi
+    export OMP_NUM_THREADS='2'
+    if [ $test = "XSBench" ]; then
+        app_args="-s small -t 2 -l 1000"
+    else if [ $test = "hpgmg-fv" ]; then
+        app_args="6 8"
+    fi
+    fi
+    run_test $test "$launch_args" "$timeout" "$app_args"
+    unset OMP_NUM_THREADS
+done
+
+# For the next group of apps, select any or all of these
+Special="
+snap
+CoMD-openmp-mpi
+lulesh2.0
+"
+#gsnap
+#ksnap
+#isnap
+
+echo "###"
+echo "### Mini Apps with strict launch requirements, varying app parameters etc. (SNAP, LULESH, CoMD)"
+echo "###"
+
+for test in $Special; do
+    #if [ $test = "gsnap" ] || [ $test = "ksnap" ] || [ $test = "isnap" ]; then
+    if [ $test = "snap" ] ; then
+        if [ $size = "large" ]; then
+            launch_args="$launch_args_snap_large"
+            app_args="./8192MT.input ./SNAPlarge.output"
+            export OMP_NUM_THREADS='2'
+        else if [ $size = "medium" ]; then
+            launch_args="$launch_args_snap_medium"
+            app_args="./96ST4nodes.input ./SNAPmedium.output"
+            export OMP_NUM_THREADS='1'
+        else
+            launch_args="$launch_args_snap_small"
+            app_args="./6MT.input ./SNAPsmall.output"
+            export OMP_NUM_THREADS='2'
+        fi
+        fi
+    else if [ $test = "CoMD-openmp-mpi" ]; then
+        if [ $size = "large" ]; then
+            launch_args="$launch_args_large"
+            app_args="-i20 -j20 -k20 -x800 -y800 -z800"
+        else if [ $size = "medium" ]; then
+            launch_args="$launch_args_lulesh_medium"
+            app_args="-i6 -j6 -k6"
+        else
+            launch_args="$launch_args_lulesh_small"
+            app_args="-i2 -j2 -k2"
+        fi
+        fi
+        export OMP_NUM_THREADS='2'
+    else if [ $test = "lulesh2.0" ]; then
+        if [ $size = "large" ]; then
+            launch_args="$launch_args_large"
+            app_args="-s 48 -i 200"
+            timeout="$timeout_3"
+        else if [ $size = "medium" ]; then
+            launch_args="$launch_args_lulesh_medium"
+            app_args="-s 38 -i 100"
+        else
+            launch_args="$launch_args_lulesh_small"
+            app_args="-s 38 -i 1000"
+        fi
+        fi
+        export OMP_NUM_THREADS='2'
+    fi
+    fi
+    fi
+    run_test $test "$launch_args" "$timeout" "$app_args"
+    unset OMP_NUM_THREADS
+done
+
+
+echo "###"
+echo "### SUMMARY"
+echo "### PASS: $pass"
+echo "### FAIL: $fail"
+echo "### NOT RUN: $not_run"
+echo "###"
+
+date
+exit $ret
+
