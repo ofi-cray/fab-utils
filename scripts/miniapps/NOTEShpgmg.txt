@@ -1,0 +1,80 @@
+
+Instructions for building and running DOE mini app HPGMG.
+For additional information see internal Mini Apps wiki.
+
+1. Download from http://crd.lbl.gov/departments/computer-science/PAR/research/hpgmg/
+   or directly from bitbucket, e.g.
+   > git clone https://bitbucket.org/hpgmg/hpgmg/
+
+2. > cd hpgmg/
+   README.md or overview write-up on bitbucket contain original instructions which are slightly
+   obsolete and incomplete.
+   
+3. Load necessary PrgEnv module, set PATH and LD_LIBRARY_PATH and set recommended environment variables,
+   e.g. for OMPI, etc.
+
+4. A configure step is needed
+   > ./configure --CC=<path>/mpicc --CFLAGS=-fopenmp
+
+5. Modify build/Makefile if additional compile flags are desired, e.g. -v or 
+   -axMIC-AVX512 (the Intel compile option for KNL cpu auto detection)
+   e.g.
+   #HPGMG_CFLAGS = -fopenmp
+   HPGMG_CFLAGS = -fopenmp -v
+
+6. > make clean
+   > make -j3 -C build
+   or
+   > make -j3 -C build V=1    /* for verbose compile output */
+   This creates the executable hpgmg-fv under build/bin/.
+
+7. Now build other apps and run the app run script run_minapps found in the same directory
+   as these notes. For run instructions see comments in the script itself.
+
+   Alternatively, a few suggested launch options to verify correct functionality follow.
+   For each example, the number of nodes used can be varied depending on whether XEON or
+   KNL nodes are used. HPGMG seems to be relatively flexible wrt. #ranks etc. It is
+   a weak scaling problem and run times remain more or less constant.
+
+   > cd build/bin
+  
+   a)
+   > export OMP_NUM_THREADS=8
+   > srun -n 8 -N 4 --ntasks-per-node=2 -c 8 --exclusive ./hpgmg-fv 6 8
+   or
+   > export OMP_NUM_THREADS=8
+   > aprun -n 8 -N 2 -d 8 -cc depth -j 4 ./hpgmg-fv 6 8
+
+   b)
+   > export OMP_NUM_THREADS=8
+   > srun -n 32 -N 4 --ntasks-per-node=8 -c 8 --hint=multithread --exclusive ./hpgmg-fv 7 8
+   or
+   > export OMP_NUM_THREADS=8
+   > aprun -n 32 -N 8 -d 8 -cc depth -j 4 ./hpgmg-fv 7 8
+
+   c)
+   > export OMP_NUM_THREADS=8
+   > srun -n 128 -N 4 --ntasks-per-node=32 -c 8 --exclusive ./hpgmg-fv 7 8
+   or
+   > export OMP_NUM_THREADS=8
+   > aprun -n 128 -N 32 -d 8 -cc depth -j 4 ./hpgmg-fv 7 8
+
+   d)
+   > export OMP_NUM_THREADS=8
+   > srun -n 512 -N 16 --ntasks-per-node=32 -c 8 --hint=multithread --exclusive ./hpgmg-fv 6 8
+   or
+   > export OMP_NUM_THREADS=8
+   > aprun -n 512 -N 32 -d 8 -cc depth -j 4 ./hpgmg-fv 6 8
+
+   Some of the larger run samples are intended for KNL cores and would need to be adjusted
+   to be run on XEON nodes. For faster running jobs, input parameters "7 8" to hpgmg can be
+   replaced by "6 8".
+
+8. The last line of the output should be
+   ===== Done ========================
+
+9. Various performance data is reported a little further up in the output, e.g.
+   Total time in MGSolve      <somany> seconds. 
+
+   None of the srun or aprun command line options should be assumed to be optimal for
+   performance investigations.

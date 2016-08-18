@@ -1,0 +1,82 @@
+
+Instructions for building and running DOE mini app SNAP.
+For additional information see internal Mini Apps wiki.
+
+1. Download or clone source from Github https://github.com/losalamos/SNAP, e.g. 
+   > git clone https://github.com/losalamos/SNAP.git.
+
+2. README.md in the top level directory contains some useful information
+
+3. Load necessary PrgEnv module, set PATH and LD_LIBRARY_PATH and set recommended
+   environment variables, e.g. for OMPI, etc.
+
+4. > cd SNAP/src
+
+   Modify Makefile as necessary. A max of three changes should be necessary, possibly fewer.
+
+   a) #FORTRAN = mpif90
+      #For Gnu and Intel compilers, mpifort works
+      FORTRAN = mpifort
+
+   b) Select one target. When using GNU, choose gsnap; when using Intel for KNL, choose ksnap;
+      when using Intel for non-KNL choose isnap.
+      TARGET = gsnap
+      #TARGET = isnap
+      #TARGET = ksnap
+
+   c) If KNL is targeted, specify automatic cpu dispatch so that executable can run on KNL and non-KNL.
+      #FFLAGS = -O3 $(OMPFLAG) -xmic-avx512 -ip -align array64byte -qopt-streaming-cache-evict=0 -qno-opt-dynamic-align -fp-model fast -fp-speculation fast -fno-alias -fno-fnalias
+      FFLAGS = -O3 $(OMPFLAG) -axMIC-AVX512 -ip -align array64byte -qopt-streaming-cache-evict=0 -qno-opt-dynamic-align -fp-model fast -fp-speculation fast -fno-alias -fno-fnalias
+
+5. > make clean
+   > make
+   This creates the above selected executable in the same directory.
+
+   If the script will be used to run the binary, rename the executable to just "snap".
+
+6. Now build other apps and run the app run script run_minapps found in the same directory
+   as these notes. For run instructions see comments in the script itself.
+
+   Alternatively, a few suggested launch options follow. For each example, the number of
+   nodes used can be varied depending on whether XEON or KNL nodes are used. SNAP requires
+   an input deck which matches the job launch command line wrt. number of ranks etc. Thus
+   is is not trivial to modify number of ranks, threads etc. to be used. The user also has
+   to specify an output file which will contain, among other things, performance data.
+
+   a) To run small QA test
+   > export OMP_NUM_THREADS=2
+   > export OMP_WAIT_POLICY=passive
+   > srun -n 6 -N 2 --ntasks-per-node=3 -c 4 --threads-per-core 2 --hint=multithread --exclusive <path/exec> in02 <outputfile>
+   or 
+   > export OMP_NUM_THREADS=2
+   > aprun -n 6 -N 3 -d 2 -cc depth -j 2 <path/exec> in02 <outputfile>
+
+   b) To run NERSC small problem on 96 ranks and 4 nodes
+   > export OMP_NUM_THREADS=1
+   > srun -n 96 -N 4 --ntasks-per-node=24 --threads-per-core 1 --exclusive <path/exec> ./small-4nodes.input <outputfile>
+   or
+   > export OMP_NUM_THREADS=1
+   > aprun -n 96 -N 24 <path/exec> ./small-4nodes.input  <outputfile>
+
+   c) To run problem on 512 ranks
+   > export OMP_NUM_THREADS=4   /* must match input deck, see wiki */
+   > export OMP_WAIT_POLICY=passive
+   > srun -n 512 -N 8 --ntasks-per-node=64 -c 4 --threads-per-core 4 --hint=multithread --exclusive <path/exec> 512MTlibfab.input <outputfile>
+   or
+   > export OMP_NUM_THREADS=4   /* must match input deck, see wiki */
+   > export OMP_WAIT_POLICY=passive
+   > aprun -n 512 -N 64 -d 4 -cc depth -j 4 <path/exec> ./512MT.input <outputfile>
+
+   where <path/exec> points to gsnap or ksnap (or isnap), depending on 3.b)
+
+7. For each run, look for "Success! Done in a SNAP!" on stdout to confirm completion.
+
+8. Performance data is summarized at the end in <outputfile>. In particular look for
+  "Solve" time and "Grind Time".
+
+   None of the srun or aprun command line options should be assumed to be optimal for
+   performance investigations.
+
+Side note: SNAP does not support long file names. If this becomes a problem, change
+this line in global.f90:
+   "CHARACTER(LEN=64) :: ifile, ofile"

@@ -1,0 +1,89 @@
+
+Instructions for building and running DOE mini app XSBench.
+For additional information see internal Mini Apps wiki.
+
+1. Download 
+   > git clone https://github.com/ANL-CESAR/XSBench
+
+2. There is a top-level README.txt with useful information.
+
+3. Load necessary PrgEnv module, set PATH and LD_LIBRARY_PATH and set recommended
+   environment variables, e.g. for OMPI, etc.
+
+4. Modify Makefile. a) is necessary, b) depends on which compiler is used.
+
+   > cd src
+
+   a) enable MPI support
+   #MPI         = no
+   MPI         = yes
+
+   b) When using Intel and building for KNL, specify "intel" as compiler (under User Options)
+   #COMPILER    = gnu
+   COMPILER    = intel
+
+   and a bit further down in the Makefile under "Intel Compiler", fix openmp flag and
+   add KNL option. Here, -qopt-report could be added if an optimization report should
+   be generated.
+
+   #CFLAGS += -openmp
+   CFLAGS += -qopenmp -axMIC-AVX512
+
+5. > make clean
+   > make
+
+   This creates the executable XSBench in the same directory.
+
+6. Now build other apps and run the app run script run_minapps found in the same directory
+   as these notes. For run instructions see comments in the script itself.
+
+   Alternatively, a few suggested launch options follow. For each example, the number of
+   nodes used can be varied depending on whether XEON or KNL nodes are used. When launching
+   XSBench, run time can be kept down by selecting -s small (instead of the default -s large),
+   and limiting lookups via -l <value>. The number of threads is controlled via -t.
+
+   a) To run a small job
+   > export OMP_NUM_THREADS=2
+   > srun -n 16 -N 2 -c 2 --exclusive <path/exec> -s small -t 2 -l 100
+   or
+   > export OMP_NUM_THREADS=2
+   > aprun -n 16 -N 8 -d 2 <path/exec> -s small -t 2 -l 100
+
+   where <path/exec> points to the binary.
+
+   b) To run on 128 ranks
+   > export OMP_NUM_THREADS=2
+   > srun -n 128 -c 2 --exclusive <path/exec> -s small -t 2 -l 100
+   or
+   > export OMP_NUM_THREADS=2
+   > aprun -n 128 -d 2 -j 2 <path/exec> -s small -t 2 -l 100
+
+   c) Suitable for KNL systems
+   > export OMP_NUM_THREADS=2
+   > srun -n 2048 --ntasks-per-node=64 -c 4 --exclusive <path/exec> -t 2 -s small -l 100
+   or
+   > export OMP_NUM_THREADS=2
+   > aprun -n 2048 -N 64 -d 2 -j 2 <path/exec> -s small -t 2 -l 100
+
+   d) Large run on current KNL systems, SLURM only
+   > export OMP_NUM_THREADS=2
+   > srun -n 8129 --ntasks-per-node=64 -c 4 --exclusive <path/exec> -t 2 -s small -l 100
+  
+7. For each run, look for a results section at the end, e.g.
+   ================================================================================
+                                        RESULTS
+   ================================================================================
+   Threads:     2
+   MPI ranks:   128
+   Total Lookups/s:            76,941,839
+   Avg Lookups/s per MPI rank: 601,108
+   ================================================================================
+
+   An output file results.txt is produces in the same directory and can generally
+   be ignored.
+
+8. Relevant performance data may be avg lookups/s per MPI rank.
+
+   None of the srun or aprun command line options should be assumed to be optimal for
+   performance investigations.
+
