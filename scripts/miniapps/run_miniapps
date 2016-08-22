@@ -26,7 +26,7 @@
 # other output, redirect all output, including slurm errors, to a file
 # 5. run the script, e.g.
 # ./run_miniapps . /cray/css/users/libfabric-test/builds/latest-libfabric-CLE-5.2UP04 medium 2>&1 | tee miniapps.out
-# or, if you have not built your own binaries yet, use use favorite contrator's binaries at your own risk
+# or, if you have not built your own binaries yet, use the following binaries at your own risk
 # ./run_miniapps /cray/css/users/c17581/scripts/miniapps /cray/css/users/libfabric-test/builds/latest-libfabric-CLE-5.2UP04 medium 2>&1 | tee miniapps.out
 # 6. a PASS/FAIL summary is printed at the end; search the output file for "FAILED" to find out failure
 # details should any have occurred; some apps such as SNAP and CoMD produce output files which can be
@@ -35,7 +35,6 @@
 # Notes: input decks need to be in the same directory as the script and output files will be written
 # there as well.
 #
-# TODO: consider simplifying nthreads handling
 
 
 if [ $# -lt 2 ]; then
@@ -52,6 +51,9 @@ APP_DIR="$1"
 LIBFABRIC_INSTALL_DIR="$2"
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
+#
+# Check input parameters etc.
+#
 if [ $# -gt 2 ]; then
     size="$3"
 else
@@ -80,8 +82,17 @@ else
     fi
 fi
 
+#
+# Set environment variables
+#
 export LD_LIBRARY_PATH=$LIBFABRIC_INSTALL_DIR/lib:$LD_LIBRARY_PATH
 
+# 
+# Set up launch arguments, some are shared among apps, others are specific to an app
+# When OpenMPI can run at scale (#883) or MPICH delivers betters MPI_Finalize 
+# performance, the time out for large runs can probably be reduced to timeout_2 or
+# problem sizes could be increased (see wiki or Notes files for ideas).
+#
 #  srun -n <nranks> -N <nnodes> --ntasks-per-node=<nranks-per-node> 
 #       -c <nthreads> --threads-per-core=<cpus per core> --exclusive -t <timeout>
 # aprun -n <nranks> -N <nranks-per-node> -d <nthreads> -t <timeout-in-seconds>
@@ -95,8 +106,8 @@ if [ $launcher = "srun" ]; then
     launch_args_lulesh_small="-n 8 -N 2 --ntasks-per-node=4 -c 2 --threads-per-core=2 --exclusive"
     launch_args_lulesh_medium="-n 216 -c 2 --threads-per-core=2 --exclusive"
     timeout_1="-t00:15:00"
-    timeout_2="-t00:20:00"
-    timeout_3="-t00:25:00"
+    timeout_2="-t00:30:00"
+    timeout_3="-t00:40:00"
 else
     launch_args_small="-n 16 -N 8 -d 2 -cc depth"
     launch_args_medium="-n 128 -d 2 -cc depth"
@@ -107,9 +118,24 @@ else
     launch_args_lulesh_small="-n 8 -N 4 -d 2 -cc depth"
     launch_args_lulesh_medium="-n 216 -d 2 -cc depth -j 2"
     timeout_1="-t 900"
-    timeout_2="-t 1200"
-    timeout_3="-t 1500"
+    timeout_2="-t 1800"
+    timeout_3="-t 2400"
 fi
+
+if [ $size = "small" ]; then
+    timeout=$timeout_1
+else if [ $size = "medium" ]; then
+    timeout=$timeout_1
+else 
+    timeout=$timeout_3
+fi
+fi
+
+#
+# Default number of OpenMP threads for apps running mulit-threaded. The couple of runs
+# which are single-threaded overwrite the default via launch parameters.
+#
+export OMP_NUM_THREADS='2'
 
 ret=0
 not_run=0
@@ -128,6 +154,8 @@ run_test() {
 	ret=-1
 	continue
     fi
+    # With aprun sleep before next launch to work around cpuset error
+    #sleep 10
     echo "###"
     echo "### ldd $APP_DIR/$test" 
     echo "###"
@@ -148,7 +176,7 @@ run_test() {
 }
 
 #
-# DOE Mini Apps XSBench, SNAP, HPGMG, LULESH, CoMD
+# DOE Mini Apps to be run are XSBench, SNAP, HPGMG, LULESH, CoMD
 #
 
 # For this group of apps, select any or all of these
@@ -164,17 +192,13 @@ echo "###"
 
 for test in $PowerOfTwo; do
     if [ $size = "large" ]; then
-        launch_args="$launch_args_large"
-        timeout="$timeout_2"
+        launch_args=$launch_args_large
     else if [ $size = "medium" ]; then
-        launch_args="$launch_args_medium"
-        timeout="$timeout_1"
+        launch_args=$launch_args_medium
     else
-        launch_args="$launch_args_small"
-        timeout="$timeout_1"
+        launch_args=$launch_args_small
     fi
     fi
-    export OMP_NUM_THREADS='2'
     if [ $test = "XSBench" ]; then
         app_args="-s small -t 2 -l 1000"
     else if [ $test = "hpgmg-fv" ]; then
@@ -182,13 +206,13 @@ for test in $PowerOfTwo; do
     fi
     fi
     run_test $test "$launch_args" "$timeout" "$app_args"
-    unset OMP_NUM_THREADS
 done
+
 
 # For the next group of apps, select any or all of these
 Special="
-snap
 CoMD-openmp-mpi
+snap
 lulesh2.0
 "
 #gsnap
@@ -203,53 +227,46 @@ for test in $Special; do
     #if [ $test = "gsnap" ] || [ $test = "ksnap" ] || [ $test = "isnap" ]; then
     if [ $test = "snap" ] ; then
         if [ $size = "large" ]; then
-            launch_args="$launch_args_snap_large"
+            launch_args=$launch_args_snap_large
             app_args="./8192MT.input ./SNAPlarge.output"
-            export OMP_NUM_THREADS='2'
         else if [ $size = "medium" ]; then
-            launch_args="$launch_args_snap_medium"
+            launch_args=$launch_args_snap_medium
             app_args="./96ST4nodes.input ./SNAPmedium.output"
-            export OMP_NUM_THREADS='1'
         else
-            launch_args="$launch_args_snap_small"
+            launch_args=$launch_args_snap_small
             app_args="./6MT.input ./SNAPsmall.output"
-            export OMP_NUM_THREADS='2'
         fi
         fi
     else if [ $test = "CoMD-openmp-mpi" ]; then
         if [ $size = "large" ]; then
-            launch_args="$launch_args_large"
+            launch_args=$launch_args_large
             app_args="-i20 -j20 -k20 -x800 -y800 -z800"
         else if [ $size = "medium" ]; then
-            launch_args="$launch_args_lulesh_medium"
+            launch_args=$launch_args_lulesh_medium
             app_args="-i6 -j6 -k6"
         else
-            launch_args="$launch_args_lulesh_small"
+            launch_args=$launch_args_lulesh_small
             app_args="-i2 -j2 -k2"
         fi
         fi
-        export OMP_NUM_THREADS='2'
     else if [ $test = "lulesh2.0" ]; then
         if [ $size = "large" ]; then
-            launch_args="$launch_args_large"
+            launch_args=$launch_args_large
             app_args="-s 48 -i 200"
-            timeout="$timeout_3"
         else if [ $size = "medium" ]; then
-            launch_args="$launch_args_lulesh_medium"
+            launch_args=$launch_args_lulesh_medium
             app_args="-s 38 -i 100"
         else
-            launch_args="$launch_args_lulesh_small"
+            launch_args=$launch_args_lulesh_small
             app_args="-s 38 -i 1000"
         fi
         fi
-        export OMP_NUM_THREADS='2'
     fi
     fi
     fi
     run_test $test "$launch_args" "$timeout" "$app_args"
-    unset OMP_NUM_THREADS
 done
-
+unset OMP_NUM_THREADS
 
 echo "###"
 echo "### SUMMARY"
