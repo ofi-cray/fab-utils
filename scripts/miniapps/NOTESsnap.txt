@@ -3,7 +3,7 @@ Instructions for building and running DOE mini app SNAP.
 For additional information see internal Mini Apps wiki.
 
 1. Download or clone source from Github https://github.com/losalamos/SNAP, e.g. 
-   > git clone https://github.com/losalamos/SNAP.git.
+   > git clone https://github.com/losalamos/SNAP.git
 
 2. README.md in the top level directory contains some useful information
 
@@ -43,25 +43,27 @@ For additional information see internal Mini Apps wiki.
    is is not trivial to modify number of ranks, threads etc. to be used. The user also has
    to specify an output file which will contain, among other things, performance data.
 
+   The following examples refer to inputs files available in this repository.
+
    a) To run small QA test
    > export OMP_NUM_THREADS=2
    > export OMP_WAIT_POLICY=passive
-   > srun -n 6 -N 2 --ntasks-per-node=3 -c 4 --threads-per-core 2 --hint=multithread --exclusive <path/exec> in02 <outputfile>
+   > srun -n 6 -N 2 --ntasks-per-node=3 -c 4 --threads-per-core 2 --hint=multithread --exclusive <path/exec> 6MT.inptu <outputfile>
    or 
    > export OMP_NUM_THREADS=2
-   > aprun -n 6 -N 3 -d 2 -cc depth -j 2 <path/exec> in02 <outputfile>
+   > aprun -n 6 -N 3 -d 2 -cc depth -j 2 <path/exec> 6MT.input <outputfile>
 
    b) To run NERSC small problem on 96 ranks and 4 nodes
    > export OMP_NUM_THREADS=1
-   > srun -n 96 -N 4 --ntasks-per-node=24 --threads-per-core 1 --exclusive <path/exec> ./small-4nodes.input <outputfile>
+   > srun -n 96 -N 4 --ntasks-per-node=24 --threads-per-core 1 --exclusive <path/exec> 96ST4nodes.input <outputfile>
    or
    > export OMP_NUM_THREADS=1
-   > aprun -n 96 -N 24 <path/exec> ./small-4nodes.input  <outputfile>
+   > aprun -n 96 -N 24 <path/exec> 96ST4nodes.input  <outputfile>
 
    c) To run problem on 512 ranks
    > export OMP_NUM_THREADS=4   /* must match input deck, see wiki */
    > export OMP_WAIT_POLICY=passive
-   > srun -n 512 -N 8 --ntasks-per-node=64 -c 4 --threads-per-core 4 --hint=multithread --exclusive <path/exec> 512MTlibfab.input <outputfile>
+   > srun -n 512 -N 8 --ntasks-per-node=64 -c 4 --threads-per-core 4 --hint=multithread --exclusive <path/exec> 512MT.input <outputfile>
    or
    > export OMP_NUM_THREADS=4   /* must match input deck, see wiki */
    > export OMP_WAIT_POLICY=passive

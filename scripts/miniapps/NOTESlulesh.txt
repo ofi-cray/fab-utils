@@ -2,7 +2,7 @@
 Instructions for building and running DOE mini app LULESH.
 For additional information see internal Mini Apps wiki.
 
-1. Download from
+1. Download "CPU Models" version from
    https://codesign.llnl.gov/lulesh.php
 
 2. A top level README mostly describes recent changes and does not provide build or run 
