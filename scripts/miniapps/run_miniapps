@@ -33,7 +33,8 @@
 # perused or deleted.
 #
 # Notes: input decks need to be in the same directory as the script and output files will be written
-# there as well.
+# there as well. The small job size requires 2 nodes, the medium size at least 4 nodes and
+# the large size 128 nodes.
 #
 
 
@@ -88,10 +89,11 @@ fi
 export LD_LIBRARY_PATH=$LIBFABRIC_INSTALL_DIR/lib:$LD_LIBRARY_PATH
 
 # 
-# Set up launch arguments, some are shared among apps, others are specific to an app
-# When OpenMPI can run at scale (#883) or MPICH delivers betters MPI_Finalize 
-# performance, the time out for large runs can probably be reduced to timeout_2 or
-# problem sizes could be increased (see wiki or Notes files for ideas).
+# Set up launch arguments, some are shared among apps, others are specific to an app.
+# Once OpenMPI can run at scale (#883) or MPICH delivers betters MPI_Finalize 
+# performance, the time-out for large runs can probably be reduced to timeout_2 (from
+# timeout_3) or problem sizes could be increased (see wiki or Notes files for ideas).
+# For now, timeout_2 is unused but included for later convenience.
 #
 #  srun -n <nranks> -N <nnodes> --ntasks-per-node=<nranks-per-node> 
 #       -c <nthreads> --threads-per-core=<cpus per core> --exclusive -t <timeout>
@@ -100,11 +102,14 @@ if [ $launcher = "srun" ]; then
     launch_args_small="-n 16 --ntasks-per-node=8 -c 2 --threads-per-core=2 --exclusive"
     launch_args_medium="-n 128 -c 2 --threads-per-core=2 --exclusive"
     launch_args_large="-n 8000 --ntasks-per-node=64 -c 2 --threads-per-core=2 --exclusive"
-    launch_args_snap_small="-n 6 -N 2 --ntasks-per-node=3 -c 2 --threads-per-core=2 --exclusive"
-    launch_args_snap_medium="-n 96 -N 4 --ntasks-per-node=24 --hint=nomultithread --exclusive"
-    launch_args_snap_large="-n 8192 -N 128 -c 2 --threads-per-core=2 --exclusive"
-    launch_args_lulesh_small="-n 8 -N 2 --ntasks-per-node=4 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_snap_small="-n 6 --ntasks-per-node=3 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_snap_medium="-n 96 --ntasks-per-node=24 --hint=nomultithread --exclusive"
+    launch_args_snap_large="-n 8192 --ntasks-per-node=64 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_lulesh_small="-n 8 --ntasks-per-node=4 -c 2 --threads-per-core=2 --exclusive"
     launch_args_lulesh_medium="-n 216 -c 2 --threads-per-core=2 --exclusive"
+    launch_args_singlethread_small="-n 16 --ntasks-per-node=8 --hint=nomultithread --exclusive"
+    launch_args_singlethread_medium="-n 128 --hint=nomultithread --exclusive"
+    launch_args_singlethread_large="-n 8192 --ntasks-per-node=64 --hint=nomultithread --exclusive"
     timeout_1="-t00:15:00"
     timeout_2="-t00:30:00"
     timeout_3="-t00:40:00"
@@ -117,6 +122,9 @@ else
     launch_args_snap_large="-n 8192 -N 64 -d 2 -cc depth -j 2"
     launch_args_lulesh_small="-n 8 -N 4 -d 2 -cc depth"
     launch_args_lulesh_medium="-n 216 -d 2 -cc depth -j 2"
+    launch_args_singlethread_small="-n 16 -N 8"
+    launch_args_singlethread_medium="-n 128"
+    launch_args_singlethread_large="-n 8192 -N 64"
     timeout_1="-t 900"
     timeout_2="-t 1800"
     timeout_3="-t 2400"
@@ -214,13 +222,15 @@ Special="
 CoMD-openmp-mpi
 snap
 lulesh2.0
+nekbone
 "
+
 #gsnap
 #ksnap
 #isnap
 
 echo "###"
-echo "### Mini Apps with strict launch requirements, varying app parameters etc. (SNAP, LULESH, CoMD)"
+echo "### Mini Apps with strict launch requirements, varying app parameters etc. (SNAP, LULESH, CoMD, Nekbone)"
 echo "###"
 
 for test in $Special; do
@@ -261,6 +271,17 @@ for test in $Special; do
             app_args="-s 38 -i 1000"
         fi
         fi
+    else if [ $test = "nekbone" ]; then
+        app_args=""
+        if [ $size = "large" ]; then
+            launch_args=$launch_args_singlethread_large
+        else if [ $size = "medium" ]; then
+            launch_args=$launch_args_singlethread_medium
+        else
+            launch_args=$launch_args_singlethread_small
+        fi
+        fi
+    fi
     fi
     fi
     fi
