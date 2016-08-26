@@ -1,0 +1,36 @@
+&invar
+  npey=16
+  npez=32
+  ichunk=32
+  nthreads=4
+  nnested=1
+  ndimen=3
+  nx=64
+  lx=1
+  ny=64
+  ly=1
+  nz=96
+  lz=1
+  nmom=1
+  fixup=1
+  ng=32
+  nang=48
+  mat_opt=1
+  src_opt=0
+  timedep=1
+  it_det=0
+  tf=0.1
+  nsteps=10
+  iitm=5
+  oitm=100
+  epsi=1.E-4
+  fluxp=0
+  scatp=0
+  angcpy=1
+  scatp=0
+  fluxp=0
+  soloutp=0
+  kplane=0
+  popout=0
+  swp_typ=0
+/
