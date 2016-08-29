@@ -25,10 +25,10 @@ For additional information see internal Mini Apps wiki.
       to allow the executable to be run on KNL and non-KNL.
 
    #F77="mpif77"
-   F77="mpif77 -qopenmp -axMIC-AVX512"
+   F77="mpif77 -axMIC-AVX512"
 
    #CC="mpicc"
-   CC="mpicc -qopenmp -axMIC-AVX512"
+   CC="mpicc -axMIC-AVX512"
 
 5. Modify SIZE file. Increase the max nranks from 10 to 8192 to allow more flexibility
    in how to run the app later.
