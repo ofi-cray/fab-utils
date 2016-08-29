@@ -79,7 +79,7 @@ For additional information see internal Mini Apps wiki.
    Avg Lookups/s per MPI rank: 601,108
    ================================================================================
 
-   An output file results.txt is produces in the same directory and can generally
+   An output file results.txt is produced in the same directory and can generally
    be ignored.
 
 8. Relevant performance data may be avg lookups/s per MPI rank.

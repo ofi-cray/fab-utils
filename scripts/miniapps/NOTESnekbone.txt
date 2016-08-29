@@ -2,7 +2,9 @@
 Instructions for building and running DOE mini app Nekbone.
 For additional information see internal Mini Apps wiki.
 
-1. Download Nekbone from https://cesar.mcs.anl.gov/content/software/thermal_hydraulics.
+1. Download Nekbone from
+   https://cesar.mcs.anl.gov/content/software/thermal_hydraulics.  You
+   must register to get a copy of the source code.
 
 2. There is a top-level readme.pdf with build and run instructions.
 
