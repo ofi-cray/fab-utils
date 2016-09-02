@@ -1,0 +1,65 @@
+
+Instructions for building and running DOE mini app miniAMR.
+For additional information see internal wiki.
+
+1. Download from https://mantevo.org/. MiniAMR is a single-threaded code.
+
+2. There is a top-level README with basic build and run information.
+
+3. Load necessary PrgEnv module, set PATH and LD_LIBRARY_PATH and set recommended envrionment variables,
+   e.g. for OMPI, etc.
+
+4. cd miniAMR_ref/
+
+   Modify Makefile.mpi if Intel compiler is used to build for KNL, for instance
+
+   #CFLAGS = -O3
+   CFLAGS = -O3 -axMIC-AVX512
+
+5. > make clean -f Makefile.mpi
+   > make -f Makefile.mpi
+
+   This creates the executable miniAMR.x in the same directory.
+
+6. Now build other apps and run the app run script run_minapps found in the same directory
+   as these notes. For run instructions see comments in the script itself.
+
+   Alternatively, a few suggested launch options follow. The app has many possible input
+   parameters but most importantly, npx * npy * npz must equal nranks. Other input parameters
+   here were chosen to extend run time beyond the default ~30sec and are optional.
+
+   a) To run a small test
+** > srun -n 16 -N 2 --exclusive miniAMR.xIMaxMIC-AVX512 --npx 2 --npy 2 --npz 4 --num_tsteps 100 --stages_per_ts 50
+
+   > srun -n 16 -N 2 --exclusive miniAMR.xIMaxMIC-AVX512 --npx 2 --npy 2 --npz 4 --num_tsteps 100 --stages_per_ts 100
+
+   where <path/exec> points to the binary.
+
+   b) To run on 128 or more ranks
+   > srun -n 128 --exclusive miniAMR.xIMaxMIC-AVX512 --npx 8 --npy 4 --npz 4
+
+   > srun -n 128 --exclusive miniAMR.xIMaxMIC-AVX512 --npx 8 --npy 4 --npz 4 --num_tsteps 100
+
+** > srun -n 128 --exclusive miniAMR.xIMaxMIC-AVX512 --npx 8 --npy 4 --npz 4 --num_tsteps 100 --stages_per_ts 50
+
+   > srun -n 1000 --exclusive miniAMR.xIMaxMIC-AVX512 --npx 10 --npy 10 --npz 10
+
+   c) Suitable for non-KNL and KNL systems; beware since runs w/ >= 2k ranks start to expose bugs;
+   > srun -n 4096 --exclusive miniAMR.x --npx 16 --npy 16 --npz 16 --num_tsteps 100 --stages_per_ts 100
+
+   d) Maximum size run on current KNL systems, SLURM only (for now run with craypich/ugni)
+
+   > srun -n 8192 -N 128 --exclusive miniAMR.xCraypichdynamic --npx 32 --npy 16 --npz 16
+
+   > srun -n 8192 -N 128 --exclusive miniAMR.xCraypichdynamic --npx 32 --npy 16 --npz 16 --num_tsteps 100 --stages_per_ts 100
+
+7. For each run, look for end of report message
+
+   ================== End report ===================
+
+8. Relevant performance data is probably sprinkled throughout the report.
+
+
+TODO: ** marks candidates for run_miniapps script because they run a little longer,
+         they have consistent input parameters and existing single-thread launch
+         options can probably be reused
