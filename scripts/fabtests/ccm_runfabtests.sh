@@ -55,7 +55,7 @@ usage() {
 }
 
 if [ $# -gt 0 ] ; then
-  while getopts "d:Dhp:t:uv:" option; do
+  while getopts "d:Dhp:t:uv" option; do
     case $option in
       d) fabtests_directory=$OPTARG;;
       D) debug=1;;
