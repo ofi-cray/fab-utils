@@ -12,7 +12,6 @@ Useful links:
    ```
 % git clone https://bitbucket.org/hpgmg/hpgmg/
    ```
-   > git clone 
 
    README.md has instructions which are slightly obsolete and
    incomplete.
@@ -28,12 +27,13 @@ and set the recommended environment variables, e.g. for MPICH, etc.
    Optionally add `-axMIC-AVX512` (the Intel compile option for KNL
    cpu auto detection) to CFLAGS.
 
-5. Build
+5. Build (in the top-level directory)
    ```
    % make -j3 -C build
    ```
 
-   This creates the executable `hpgmg-fv` under `build/bin`.
+   This creates the executable `hpgmg-fv` under `build/bin`.  The
+   build can take over an hour.
 
 ## Example runs
 

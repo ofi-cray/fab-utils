@@ -28,9 +28,9 @@ three changes may be needed.
    Select one target. When using GNU, choose `gsnap`; when using Intel
    for KNL, choose `ksnap`; when using Intel for non-KNL choose `isnap`.
    ```
-   TARGET = gsnap
+   #TARGET = gsnap
    #TARGET = isnap
-   #TARGET = ksnap
+   TARGET = ksnap
    ```
 
    If KNL is targeted, specify automatic cpu dispatch so that
@@ -40,7 +40,7 @@ three changes may be needed.
    FFLAGS = -O3 $(OMPFLAG) -axMIC-AVX512 -ip -align array64byte -qopt-streaming-cache-evict=0 -qno-opt-dynamic-align -fp-model fast -fp-speculation fast -fno-alias -fno-fnalias
    ```
    
-4. Build
+4. Build (in the `src` directory)
    ```
    % make
    ```

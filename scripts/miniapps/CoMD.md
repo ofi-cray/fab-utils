@@ -34,7 +34,7 @@ and set the recommended environment variables, e.g. for MPICH, etc.
 
    You can optionally add `-qopt-report` if you want an optimization report.
 
-5. Build
+5. Build (in the `src-openmp` directory)
    ```
    % make
    ```
