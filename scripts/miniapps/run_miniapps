@@ -223,6 +223,7 @@ CoMD-openmp-mpi
 snap
 lulesh2.0
 nekbone
+miniAMR.x
 "
 
 #gsnap
@@ -230,7 +231,7 @@ nekbone
 #isnap
 
 echo "###"
-echo "### Mini Apps with strict launch requirements, varying app parameters etc. (SNAP, LULESH, CoMD, Nekbone)"
+echo "### Mini Apps with strict launch requirements, varying app parameters etc. (SNAP, LULESH, CoMD, Nekbone, miniAMR)"
 echo "###"
 
 for test in $Special; do
@@ -281,6 +282,19 @@ for test in $Special; do
             launch_args=$launch_args_singlethread_small
         fi
         fi
+    else if [ $test = "miniAMR.x" ]; then
+        if [ $size = "large" ]; then
+            launch_args=$launch_args_singlethread_large
+            app_args="--npx 32 --npy 16 --npz 16 --num_tsteps 100 --stages_per_ts 50"
+        else if [ $size = "medium" ]; then
+            launch_args=$launch_args_singlethread_medium
+            app_args="--npx 8 --npy 4 --npz 4 --num_tsteps 100 --stages_per_ts 50"
+        else
+            launch_args=$launch_args_singlethread_small
+            app_args="--npx 2 --npy 2 --npz 4 --num_tsteps 100 --stages_per_ts 50"
+        fi
+        fi
+    fi
     fi
     fi
     fi
