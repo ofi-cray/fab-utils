@@ -41,7 +41,7 @@ and set the recommended environment variables, e.g. for MPICH, etc.
 
 You can optionally add `-qopt-report` if you want an optimization report.
 
-3. Build
+3. Build (in the `src` directory)
    ```
    % make
    ```

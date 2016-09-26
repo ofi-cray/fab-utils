@@ -23,7 +23,7 @@ directory for the appropriate compiler:
    CFLAGS = -O3 -axMIC-AVX512
    ```
 
-5. Build
+5. Build (in the `miniARM_ref` directory)
    ```
    % make -f Makefile.mpi
    ```

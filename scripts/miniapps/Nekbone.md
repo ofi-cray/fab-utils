@@ -48,7 +48,7 @@ more flexibility in how to run the program later.
          parameter (lp = 8192)                   ! max number of processors
    ```
 
-5. Build
+5. Build (in the `./test/example1` directory)
    ```
    % ./makenek ex1
    ```
@@ -107,6 +107,9 @@ Before terminating, the program prints:
  Exitting....
 ```
 (No, that is not a type-o.)
+
+It's possible that some of the verbose set up output gets printed
+after the above.
 
 A performance summary is printed just before termination, e.g.
 ```

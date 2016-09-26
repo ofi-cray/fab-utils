@@ -9,7 +9,7 @@ Useful links:
 ## How to build
 
 1. Download the most recent "CPU Models" tarball found at the web site
-above.  A top level README mostly describes recent changes and does
+above.  A top-level README mostly describes recent changes and does
 not provide build or run information.  See the above link for build
 instructions.
 
