@@ -195,7 +195,7 @@ hpgmg-fv
 
 date
 echo "###"
-echo "### Mini Apps which no special nranks requirements (XSBench, HPGMG)"
+echo "### Mini Apps with no special nranks requirements (XSBench, HPGMG)"
 echo "###"
 
 for test in $PowerOfTwo; do
