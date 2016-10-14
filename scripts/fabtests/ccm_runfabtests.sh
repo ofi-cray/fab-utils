@@ -99,8 +99,7 @@ cat >> ${ccm_login_script} <<"END_OF_CCMLOGIN_SCRIPT_2"
 node_1=""
 node_2=""
 
-ccm_login_node_dir="${HOME}/.crayccm/"
-ccm_nodelist_file="${ccm_login_node_dir}/`ls ${ccm_login_node_dir}`"
+ccm_nodelist_file=$1
 node_index=0
 
 if [[ ${debug} -ne 0 ]]
@@ -197,12 +196,23 @@ END_OF_CCMLOGIN_SCRIPT_2
 
 chmod 755 ${ccm_login_script}
 
-if [[ ${debug} -ne 0 ]]
-then
-    echo "*** cmd: '${ccm_login} ${ccm_login_script}'"
+ccm_login_node_dir="${HOME}/.crayccm/"
+if [ "$PBS_JOBID" != "" ]; then
+    ccm_nodelist_file="${ccm_login_node_dir}/ccm_nodelist.$PBS_JOBID"
+elif [ "$SLURM_JOB_ID" != "" ]; then
+    ccm_nodelist_file="${ccm_login_node_dir}/ccm_nodelist.$SLURM_JOB_ID"
+elif [ "$SLURM_JOBID" != "" ]; then
+    ccm_nodelist_file="${ccm_login_node_dir}/ccm_nodelist.$SLURM_JOBID"
+else
+    ccm_nodelist_file="${ccm_login_node_dir}/`ls ${ccm_login_node_dir}`"    
 fi
 
-${ccm_login} ${ccm_login_script}
+if [[ ${debug} -ne 0 ]]
+then
+    echo "*** cmd: '${ccm_login} ${ccm_login_script} ${ccm_nodelist_file}'"
+fi
+
+${ccm_login} ${ccm_login_script} ${ccm_nodelist_file}
 
 if [[ ${debug} -eq 0 ]]
 then
