@@ -1,0 +1,58 @@
+#!/bin/bash
+#
+# Run the Sandia SHMEM sanity tests
+#
+
+if [ $# -lt 2 ]; then
+    echo "usage: $0 <path-to-SOS> <path-to-libfabric-install>"
+    exit -1
+fi
+
+SOS_DIR="$1"
+LIBFABRIC_INSTALL="$2"
+
+cd $SOS_DIR
+if [ $? != 0 ]; then
+    echo "Could not change directory to $SOS_DIR."
+    exit -1
+fi
+
+#
+# Check for srun or aprun
+#
+srun=`command -v srun`
+if [ $? == 0 ]; then
+    launcher="srun"
+else
+    aprun=`command -v aprun`
+    if [ $? == 0 ]; then
+        launcher="aprun"
+    else
+        echo "Cannot find a supported job launcher (srun, aprun).  Please load the appropriate module"
+        exit -1
+    fi
+fi
+
+# srun -n X -N Y -t Z
+# aprun -n Y -N (Y/X) -t Z*60
+#
+# at least on tiger, srun seems to allocate ranks to hyperthreads, so use -c2
+#
+if [ $launcher = "srun" ]; then
+    test_launcher_args="srun -t00:4:00 --exclusive -n 2 -N2"
+else
+    test_launcher_args="aprun -t240 -n 2 -N 1"
+fi
+echo $test_launcher_args
+sleep 1
+
+export LD_LIBRARY_PATH=$LIBFABRIC_INSTALL/lib:$LD_LIBRARY_PATH
+export FI_LOG_LEVEL=warn
+#
+# tests that are known to fail filtered with XFAIL_TESTS (with libfabric-cray at 69922cb5)
+# using Sandia SHMEM 1.3.2
+#
+export XFAIL_TESTS="sping global_exit waituntil rma_coverage cxx_test_shmem_put fcollect64 c11_test_shmem_put"
+make check TEST_RUNNER="$test_launcher_args"
+exit $ret
+
